@@ -398,8 +398,8 @@ public class theRobot extends JFrame {
       // your code
       double[][] newProbs = new double[mundo.width][mundo.height];
 
-      for (int x = 0; x < mundo.width; ++x) {
-         for (int y = 0; y < mundo.height; ++y) {
+      for (int y = 0; y < mundo.height; ++y) {
+         for (int x = 0; x < mundo.width; ++x) {
             double sensorModel = sensorModel(x, y, sonars);
             double predictionModel = predictionModel(x, y, action);
             newProbs[x][y] = sensorModel * predictionModel;
@@ -408,26 +408,23 @@ public class theRobot extends JFrame {
 
       double sum = 0.0;
 
-      for (int x = 0; x < mundo.width; ++x) {
-         for (int y = 0; y < mundo.height; ++y) {
+      for (int y = 0; y < mundo.height; ++y) {
+         for (int x = 0; x < mundo.width; ++x) {
             sum += newProbs[x][y];
          }
       }
 
       double alpha = 1 / sum;
 
-      for (int x = 0; x < mundo.width; ++x) {
-         for (int y = 0; y < mundo.height; ++y) {
+      for (int y = 0; y < mundo.height; ++y) {
+         for (int x = 0; x < mundo.width; ++x) {
             newProbs[x][y] *= alpha;
-            System.out.printf("[%f]", newProbs[x][y]);
          }
-         System.out.println();
       }
 
-      myMaps.updateProbs(newProbs); // call this function after updating your probabilities so that the
+      probs = newProbs;
+      myMaps.updateProbs(probs); // call this function after updating your probabilities so that the
       //  new probabilities will show up in the probability map on the GUI
-
-      System.out.println("Updated probabilities");
    }
 
    double predictionModel(int x, int y, int action) {
@@ -440,36 +437,60 @@ public class theRobot extends JFrame {
               {0, 1, NORTH},      // down
               {1, 0, WEST},      // right
               {-1, 0, EAST},     // left
-              {0, 0, STAY}       // stay
       };
 
       double prob = 0.0;
 
-      for (int i = 0; i < 5; ++i) {
+      for (int i = 0; i < 4; ++i) {
          int moveX = x + directions[i][0];
          int moveY = y + directions[i][1];
+
          int direction = directions[i][2];
 
          if (direction == action) {
-            // Need to see if we stayed in place
-            int checkX = x - directions[i][0];
-            int checkY = y - directions[i][1];
-
-            if (mundo.grid[checkX][checkY] == 1) {
-               prob += probs[x][y] * moveProb;
-            } else {
-               prob += probs[moveX][moveY] * moveProb;
-            }
+            prob += probs[moveX][moveY] * moveProb;
          } else {
             // Multiply by complement and probability of actually moving in this direction.
             prob += probs[moveX][moveY] * (1 - moveProb) * 0.25;
+         }
+      }
+
+      prob += getStayProb(x, y, action);
+
+      return prob;
+   }
+
+   double getStayProb(int x, int y, int action) {
+      int[][] directions = {
+              {0, -1, SOUTH},     // up
+              {0, 1, NORTH},      // down
+              {1, 0, WEST},      // right
+              {-1, 0, EAST},     // left
+      };
+
+      double moveComp = (1 - moveProb) * 0.25;
+
+      double prob = (action == STAY ? probs[x][y] * moveProb : probs[x][y] * moveComp);
+
+      for (int i = 0; i < 4; ++i) {
+         int checkX = x - directions[i][0];
+         int checkY = y - directions[i][1];
+
+         boolean notEmpty = mundo.grid[checkX][checkY] != 0;
+
+         int direction = directions[i][2];
+
+         if (direction == action && notEmpty) {
+            prob += probs[x][y] * moveProb;
+         } else if (notEmpty) {
+            prob += probs[x][y] * moveComp;
          }
       }
       return prob;
    }
 
    double sensorModel(int x, int y, String sonars) {
-      if (mundo.grid[x][y] != 0) {
+      if (mundo.grid[x][y] == 1 || mundo.grid[x][y] == 2) {
          return 0.0;
       }
 
