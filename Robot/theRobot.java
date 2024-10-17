@@ -400,28 +400,34 @@ public class theRobot extends JFrame {
 
       for (int x = 0; x < mundo.width; ++x) {
          for (int y = 0; y < mundo.height; ++y) {
-            newProbs[x][y] = sensorModel(x, y, sonars);
+            double sensorModel = sensorModel(x, y, sonars);
+            double predictionModel = predictionModel(x, y, action);
+            newProbs[x][y] = sensorModel * predictionModel;
          }
       }
 
-//      double sum = 0.0;
-//
-//      for (int x = 0; x < mundo.width; ++x) {
-//         for (int y = 0; y < mundo.height; ++y) {
-//            sum += newProbs[x][y];
-//         }
-//      }
-//
-//      double alpha = 1/sum;
-//
-//      for (int x = 0; x < mundo.width; ++x) {
-//         for (int y = 0; y < mundo.height; ++y) {
-//            newProbs[x][y] *= alpha;
-//         }
-//      }
+      double sum = 0.0;
+
+      for (int x = 0; x < mundo.width; ++x) {
+         for (int y = 0; y < mundo.height; ++y) {
+            sum += newProbs[x][y];
+         }
+      }
+
+      double alpha = 1 / sum;
+
+      for (int x = 0; x < mundo.width; ++x) {
+         for (int y = 0; y < mundo.height; ++y) {
+            newProbs[x][y] *= alpha;
+            System.out.printf("[%f]", newProbs[x][y]);
+         }
+         System.out.println();
+      }
 
       myMaps.updateProbs(newProbs); // call this function after updating your probabilities so that the
       //  new probabilities will show up in the probability map on the GUI
+
+      System.out.println("Updated probabilities");
    }
 
    double predictionModel(int x, int y, int action) {
@@ -430,10 +436,10 @@ public class theRobot extends JFrame {
       }
 
       int[][] directions = {
-              {0, -1, NORTH},     // up
-              {0, 1, SOUTH},      // down
-              {1, 0, EAST},      // right
-              {-1, 0, WEST},     // left
+              {0, -1, SOUTH},     // up
+              {0, 1, NORTH},      // down
+              {1, 0, WEST},      // right
+              {-1, 0, EAST},     // left
               {0, 0, STAY}       // stay
       };
 
@@ -445,20 +451,24 @@ public class theRobot extends JFrame {
          int direction = directions[i][2];
 
          if (direction == action) {
-            prob += probs[moveX][moveY] * moveProb;
+            // Need to see if we stayed in place
+            int checkX = x - directions[i][0];
+            int checkY = y - directions[i][1];
+
+            if (mundo.grid[checkX][checkY] == 1) {
+               prob += probs[x][y] * moveProb;
+            } else {
+               prob += probs[moveX][moveY] * moveProb;
+            }
          } else {
             // Multiply by complement and probability of actually moving in this direction.
             prob += probs[moveX][moveY] * (1 - moveProb) * 0.25;
          }
-
       }
-
       return prob;
    }
 
    double sensorModel(int x, int y, String sonars) {
-      System.out.println("sonars: " + sonars);
-
       if (mundo.grid[x][y] != 0) {
          return 0.0;
       }
@@ -477,7 +487,7 @@ public class theRobot extends JFrame {
          int moveY = y + directions[i][1];
 
          if (mundo.grid[moveX][moveY] == sonars.charAt(i) - '0' ||
-             mundo.grid[moveX][moveY] != 1 && sonars.charAt(i) == '0') {
+                 mundo.grid[moveX][moveY] != 1 && sonars.charAt(i) == '0') {
             ++numMatch;
          }
       }
