@@ -266,10 +266,7 @@ public class theRobot extends JFrame {
 
    public theRobot(String _manual, int _decisionDelay) {
       // initialize variables as specified from the command-line
-      if (_manual.equals("automatic"))
-         isManual = false;
-      else
-         isManual = true;
+      isManual = !_manual.equals("automatic");
       decisionDelay = _decisionDelay;
 
       // get a connection to the server and get initial information about the world
@@ -390,8 +387,61 @@ public class theRobot extends JFrame {
       myMaps.updateProbs(probs);
    }
 
-   // TODO: update the probabilities of where the AI thinks it is based on the action selected and the new sonar readings
-   //       To do this, you should update the 2D-array "probs"
+   // Iterate over utility values in the maze to find the optimal values
+   void valueIteration() {
+      double gamma = 0.9;
+      double epsilon = 1e-6;
+      double delta;
+
+      Vs = new double[mundo.width][mundo.height];
+
+      do {
+         delta = 0.0;
+
+         for (int x = 0; x < mundo.width; ++x) {
+            for (int y = 0; y < mundo.height; ++y) {
+               int cellType = mundo.grid[x][y];
+
+               // We don't want to iterate over walls
+               if (cellType == 1) {
+                  continue;
+               }
+
+               double Rs = getRewardValue(cellType);
+
+               double maxSum = 0.0;
+               // Possible actions are ints ranging from 0 to 4
+               for (int action = NORTH; action <= STAY; ++action) {
+                  double sPrime = predictionModel(x, y, action);
+                  double VsPrime = Vs[x][y];
+
+                  double actionUtil = sPrime * VsPrime;
+
+                  if (actionUtil > maxSum) {
+                     maxSum = actionUtil;
+                  }
+               }
+
+               double VsUpdated = Rs + gamma * maxSum;
+               // Keep the maximum change that we see over all iterations. This will determine if we have converged.
+               delta = Math.max(delta, Math.abs(VsUpdated - Vs[x][y]));
+               Vs[x][y] = VsUpdated;
+            }
+         }
+      } while (delta >= epsilon);
+   }
+
+   double getRewardValue(int cellType) {
+      double stairReward = -10.0;
+      double goalReward = 15.0;
+
+      return switch (cellType) {
+         case 2 -> stairReward;
+         case 3 -> goalReward;
+         default -> 0.0;
+      };
+   }
+
    // Note: sonars is a bit string with four characters, specifying the sonar reading in the direction of North, South, East, and West
    //       For example, the sonar string 1001, specifies that the sonars found a wall in the North and West directions, but not in the South and East directions
    void updateProbabilities(int action, String sonars) {
@@ -526,7 +576,7 @@ public class theRobot extends JFrame {
    void doStuff() {
       int action;
 
-      //valueIteration();  // TODO: function you will write in Part II of the lab
+      valueIteration();  // TODO: function you will write in Part II of the lab
       initializeProbabilities();  // Initializes the location (probability) map
 
       while (true) {
@@ -543,7 +593,7 @@ public class theRobot extends JFrame {
             String sonars = sin.readLine();
             //System.out.println("Sonars: " + sonars);
 
-            updateProbabilities(action, sonars); // TODO: this function should update the probabilities of where the AI thinks it is
+            updateProbabilities(action, sonars);
 
             if (sonars.length() > 4) {  // check to see if the robot has reached its goal or fallen down stairs
                if (sonars.charAt(4) == 'w') {
