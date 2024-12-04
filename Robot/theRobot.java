@@ -418,7 +418,6 @@ public class theRobot extends JFrame {
                   continue;
                }
 
-
                double maxActionValue = Double.NEGATIVE_INFINITY;
 
                for (int action = 0; action < 5; action++) {
@@ -469,7 +468,6 @@ public class theRobot extends JFrame {
 
          utility += prob * Vs[xPrime][yPrime];
       }
-
       return utility;
    }
 
@@ -477,7 +475,7 @@ public class theRobot extends JFrame {
       System.out.println("----------------------------------------------------------------------------------------");
       for (int y = 0; y < mundo.height; ++y) {
          for (int x = 0; x < mundo.width; ++x) {
-            System.out.printf("[%f]", array[x][y]);
+            System.out.printf("[%.1f]", array[x][y]);
          }
          System.out.println();
       }
@@ -486,7 +484,7 @@ public class theRobot extends JFrame {
 
    double getRewardValue(int cellType) {
       double stairReward = -100.0;
-      double goalReward = 10;
+      double goalReward = 150;
       double hallReward = -1;
 
       return switch (cellType) {
@@ -603,8 +601,41 @@ public class theRobot extends JFrame {
    // This is the function you'd need to write to make the robot move using your AI;
    // You do NOT need to write this function for this lab; it can remain as is
    int automaticAction() {
+      int bestAction = 0;
 
-      return STAY;  // default action for now
+      double bestEV = Double.NEGATIVE_INFINITY;
+
+      // Try each action and find the expected value, EV(a), of each action and choose the best one.
+      for (int action = 0; action < 5; ++action) {
+         double EV = getEV(action);
+         if (EV > bestEV) {
+            bestEV = EV;
+            bestAction = action;
+         }
+      }
+
+      return bestAction;
+   }
+
+   private double getEV(int action) {
+      double EV = 0.0;
+
+      for (int y = 0; y < mundo.height; ++y) {
+         for (int x = 0; x < mundo.width; ++x) {
+            int xPrime = x + directions[action][0];
+            int yPrime = y + directions[action][1];
+
+            // Check for walls and ensure within bounds
+            if (xPrime < 0 || xPrime >= mundo.width ||
+                    yPrime < 0 || yPrime >= mundo.height ||
+                    mundo.grid[xPrime][yPrime] == 1 || mundo.grid[x][y] == 1) {
+               continue;
+            }
+
+            EV += probs[x][y] * Vs[xPrime][yPrime];
+         }
+      }
+      return EV;
    }
 
    void doStuff() {
