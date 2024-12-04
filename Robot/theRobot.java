@@ -238,6 +238,14 @@ public class theRobot extends JFrame {
    public static final int WEST = 3;
    public static final int STAY = 4;
 
+   public static int[][] directions = {
+           {0, -1, SOUTH},     // up
+           {0, 1, NORTH},      // down
+           {1, 0, WEST},      // right
+           {-1, 0, EAST},     // left
+           {0, 0, STAY}       // stay
+   };
+
    Color bkgroundColor = new Color(230, 230, 230);
 
    static mySmartMap myMaps; // instance of the class that draw everything to the GUI
@@ -389,56 +397,103 @@ public class theRobot extends JFrame {
 
    // Iterate over utility values in the maze to find the optimal values
    void valueIteration() {
-      double gamma = 0.9;
-      double epsilon = 1e-6;
+      double gamma = 0.99;
+      double epsilon = 0.001;
       double delta;
 
       Vs = new double[mundo.width][mundo.height];
 
       do {
          delta = 0.0;
+         double[][] newVs = new double[mundo.width][mundo.height];
 
-         for (int x = 0; x < mundo.width; ++x) {
-            for (int y = 0; y < mundo.height; ++y) {
+         for (int y = 0; y < mundo.height; ++y) {
+            for (int x = 0; x < mundo.width; ++x) {
                int cellType = mundo.grid[x][y];
-
-               // We don't want to iterate over walls
-               if (cellType == 1) {
-                  continue;
-               }
 
                double Rs = getRewardValue(cellType);
 
-               double maxSum = 0.0;
-               // Possible actions are ints ranging from 0 to 4
-               for (int action = NORTH; action <= STAY; ++action) {
-                  double sPrime = predictionModel(x, y, action);
-                  double VsPrime = Vs[x][y];
+               if (cellType != 0) {
+                  newVs[x][y] = Rs;
+                  continue;
+               }
 
-                  double actionUtil = sPrime * VsPrime;
 
-                  if (actionUtil > maxSum) {
-                     maxSum = actionUtil;
+               double maxActionValue = Double.NEGATIVE_INFINITY;
+
+               for (int action = 0; action < 5; action++) {
+                  double actionValue = 0.0;
+
+                  // Compute expected utility for this action
+                  actionValue = computeExpectedUtility(x, y, action);
+
+                  if (actionValue > maxActionValue) {
+                     maxActionValue = actionValue;
                   }
                }
 
-               double VsUpdated = Rs + gamma * maxSum;
+               double VsUpdated = Rs + gamma * maxActionValue;
                // Keep the maximum change that we see over all iterations. This will determine if we have converged.
                delta = Math.max(delta, Math.abs(VsUpdated - Vs[x][y]));
-               Vs[x][y] = VsUpdated;
+               newVs[x][y] = VsUpdated;
             }
          }
-      } while (delta >= epsilon);
+         Vs = newVs;
+      } while (delta > epsilon);
+   }
+
+   double computeExpectedUtility(int x, int y, int action) {
+      double utility = 0.0;
+
+      // Define possible movements and their probabilities
+      for (int dir = 0; dir < 5; dir++) {
+         int dx = directions[dir][0];
+         int dy = directions[dir][1];
+         int intendedAction = directions[dir][2];
+
+         int xPrime = x + dx;
+         int yPrime = y + dy;
+
+         // Check for boundaries and walls
+         if (xPrime < 0 || xPrime >= mundo.width || yPrime < 0 || yPrime >= mundo.height || mundo.grid[xPrime][yPrime] == 1) {
+            xPrime = x;
+            yPrime = y;
+         }
+
+         double prob;
+         if (intendedAction == action) {
+            prob = moveProb;
+         } else {
+            prob = (1 - moveProb) / 4.0;
+         }
+
+         utility += prob * Vs[xPrime][yPrime];
+      }
+
+      return utility;
+   }
+
+   void printMundoArray(double[][] array) {
+      System.out.println("----------------------------------------------------------------------------------------");
+      for (int y = 0; y < mundo.height; ++y) {
+         for (int x = 0; x < mundo.width; ++x) {
+            System.out.printf("[%f]", array[x][y]);
+         }
+         System.out.println();
+      }
+      System.out.println("----------------------------------------------------------------------------------------");
    }
 
    double getRewardValue(int cellType) {
-      double stairReward = -10.0;
-      double goalReward = 15.0;
+      double stairReward = -100.0;
+      double goalReward = 10;
+      double hallReward = -1;
 
       return switch (cellType) {
+         case 1 -> 0.0;
          case 2 -> stairReward;
          case 3 -> goalReward;
-         default -> 0.0;
+         default -> hallReward;
       };
    }
 
@@ -478,18 +533,11 @@ public class theRobot extends JFrame {
    }
 
    double predictionModel(int x, int y, int action) {
-      if (mundo.grid[x][y] != 0) {
-         return 0.0;
-      }
-
-      int[][] directions = {
-              {0, -1, SOUTH},     // up
-              {0, 1, NORTH},      // down
-              {1, 0, WEST},      // right
-              {-1, 0, EAST},     // left
-      };
-
       double prob = 0.0;
+
+      if (mundo.grid[x][y] == 1) {
+         return prob;
+      }
 
       for (int i = 0; i < 4; ++i) {
          int moveX = x + directions[i][0];
@@ -511,13 +559,6 @@ public class theRobot extends JFrame {
    }
 
    double getStayProb(int x, int y, int action) {
-      int[][] directions = {
-              {0, -1, SOUTH},     // up
-              {0, 1, NORTH},      // down
-              {1, 0, WEST},      // right
-              {-1, 0, EAST},     // left
-      };
-
       double moveComp = (1 - moveProb) * 0.25;
 
       double prob = (action == STAY ? probs[x][y] * moveProb : probs[x][y] * moveComp);
@@ -526,13 +567,13 @@ public class theRobot extends JFrame {
          int checkX = x - directions[i][0];
          int checkY = y - directions[i][1];
 
-         boolean notEmpty = mundo.grid[checkX][checkY] != 0;
+         boolean isWall = mundo.grid[checkX][checkY] == 1;
 
          int direction = directions[i][2];
 
-         if (direction == action && notEmpty) {
+         if (direction == action && isWall) {
             prob += probs[x][y] * moveProb;
-         } else if (notEmpty) {
+         } else if (isWall) {
             prob += probs[x][y] * moveComp;
          }
       }
@@ -543,13 +584,6 @@ public class theRobot extends JFrame {
       if (mundo.grid[x][y] == 1 || mundo.grid[x][y] == 2) {
          return 0.0;
       }
-
-      int[][] directions = {
-              {0, -1},    // up
-              {0, 1},     // down
-              {1, 0},     // right
-              {-1, 0}     // left
-      };
 
       double numMatch = 0.0;
 
@@ -576,8 +610,8 @@ public class theRobot extends JFrame {
    void doStuff() {
       int action;
 
-      valueIteration();  // TODO: function you will write in Part II of the lab
       initializeProbabilities();  // Initializes the location (probability) map
+      valueIteration();
 
       while (true) {
          try {
