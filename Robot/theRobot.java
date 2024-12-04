@@ -480,9 +480,9 @@ public class theRobot extends JFrame {
    }
 
    double getRewardValue(int cellType) {
-      double stairReward = -10;
+      double stairReward = -2;
       double goalReward = 1500;
-      double hallReward = -5;
+      double hallReward = -1;
 
       return switch (cellType) {
          case 1 -> 0.0;
@@ -611,6 +611,11 @@ public class theRobot extends JFrame {
             bestEV = EV;
             bestAction = action;
          }
+
+         if (EV == bestEV) {
+            if (Math.random() < 0.5)
+               bestAction = action;
+         }
       }
       return bestAction;
    }
@@ -635,6 +640,11 @@ public class theRobot extends JFrame {
          if (EV > bestEV) {
             bestEV = EV;
             bestAction = action;
+         }
+
+         if (EV == bestEV) {
+            if (Math.random() < 0.5)
+               bestAction = action;
          }
       }
       return bestAction;
