@@ -398,7 +398,7 @@ public class theRobot extends JFrame {
    // Iterate over utility values in the maze to find the optimal values
    void valueIteration() {
       double gamma = 0.99;
-      double epsilon = 0.001;
+      double epsilon = 1e-6;
       double delta;
 
       Vs = new double[mundo.width][mundo.height];
@@ -421,10 +421,7 @@ public class theRobot extends JFrame {
                double maxActionValue = Double.NEGATIVE_INFINITY;
 
                for (int action = 0; action < 5; action++) {
-                  double actionValue = 0.0;
-
-                  // Compute expected utility for this action
-                  actionValue = computeExpectedUtility(x, y, action);
+                  double actionValue = computeExpectedUtility(x, y, action);
 
                   if (actionValue > maxActionValue) {
                      maxActionValue = actionValue;
@@ -483,9 +480,9 @@ public class theRobot extends JFrame {
    }
 
    double getRewardValue(int cellType) {
-      double stairReward = -100.0;
-      double goalReward = 150;
-      double hallReward = -1;
+      double stairReward = -10;
+      double goalReward = 1500;
+      double hallReward = -5;
 
       return switch (cellType) {
          case 1 -> 0.0;
@@ -607,13 +604,39 @@ public class theRobot extends JFrame {
 
       // Try each action and find the expected value, EV(a), of each action and choose the best one.
       for (int action = 0; action < 5; ++action) {
+
          double EV = getEV(action);
+
          if (EV > bestEV) {
             bestEV = EV;
             bestAction = action;
          }
       }
+      return bestAction;
+   }
 
+   int autoExploreAction(int consecutiveStayActions, double epsilon) {
+      int bestAction = 0;
+      int maxStays = 3;
+
+      double bestEV = Double.NEGATIVE_INFINITY;
+      for (int action = 0; action < 5; ++action) {
+         // Prevent infinite STAY actions
+         if (action == STAY && consecutiveStayActions >= maxStays)
+            continue;
+
+         // Random chance to move in a less optimal direction.
+         if (Math.random() < epsilon) {
+            bestAction = (int) (Math.random() * 4);
+         }
+
+         double EV = getEV(action);
+
+         if (EV > bestEV) {
+            bestEV = EV;
+            bestAction = action;
+         }
+      }
       return bestAction;
    }
 
@@ -640,6 +663,8 @@ public class theRobot extends JFrame {
 
    void doStuff() {
       int action;
+      int numStay = 0;
+      double epsilon = 0.9;
 
       initializeProbabilities();  // Initializes the location (probability) map
       valueIteration();
@@ -648,8 +673,17 @@ public class theRobot extends JFrame {
          try {
             if (isManual)
                action = getHumanAction();  // get the action selected by the user (from the keyboard)
-            else
-               action = automaticAction(); // TODO: get the action selected by your AI;
+            else {
+               action = automaticAction();
+
+               // Favor exploration in the early actions to localize.
+               action = autoExploreAction(numStay, epsilon);
+               epsilon *= epsilon;
+
+               // Count the number of consecutive STAY actions
+               if (action == STAY) numStay += 1;
+               else numStay = 0;
+            }
             // you'll need to write this function for part III
 
             sout.println(action); // send the action to the Server
