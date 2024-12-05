@@ -684,11 +684,11 @@ public class theRobot extends JFrame {
             if (isManual)
                action = getHumanAction();  // get the action selected by the user (from the keyboard)
             else {
-               action = automaticAction();
+               // action = automaticAction();
 
                // Favor exploration in the early actions to localize.
                action = autoExploreAction(numStay, epsilon);
-               epsilon *= epsilon;
+               epsilon = Math.max(epsilon * epsilon, 0.01);
 
                // Count the number of consecutive STAY actions
                if (action == STAY) numStay += 1;
