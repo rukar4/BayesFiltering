@@ -397,7 +397,7 @@ public class theRobot extends JFrame {
 
    // Iterate over utility values in the maze to find the optimal values
    void valueIteration() {
-      double gamma = 0.99;
+      double gamma = 0.9;
       double epsilon = 1e-6;
       double delta;
 
@@ -480,15 +480,15 @@ public class theRobot extends JFrame {
    }
 
    double getRewardValue(int cellType) {
-      double stairReward = -2;
-      double goalReward = 1500;
-      double hallReward = -1;
+      double stairReward = -1.0;
+      double goalReward = 100.0;
+      double emptyReward = -0.01;
 
       return switch (cellType) {
          case 1 -> 0.0;
          case 2 -> stairReward;
          case 3 -> goalReward;
-         default -> hallReward;
+         default -> emptyReward;
       };
    }
 
@@ -665,7 +665,9 @@ public class theRobot extends JFrame {
                continue;
             }
 
-            EV += probs[x][y] * Vs[xPrime][yPrime];
+            double Q = moveProb * Vs[xPrime][yPrime];
+
+            EV += probs[x][y] * Q;
          }
       }
       return EV;
@@ -676,15 +678,17 @@ public class theRobot extends JFrame {
       int numStay = 0;
       double epsilon = 0.9;
 
-      initializeProbabilities();  // Initializes the location (probability) map
       valueIteration();
+      initializeProbabilities();  // Initializes the location (probability) map
+
+      printMundoArray(Vs);
 
       while (true) {
          try {
             if (isManual)
                action = getHumanAction();  // get the action selected by the user (from the keyboard)
             else {
-               // action = automaticAction();
+//                action = automaticAction();
 
                // Favor exploration in the early actions to localize.
                action = autoExploreAction(numStay, epsilon);
