@@ -160,6 +160,9 @@ public class BayesWorld extends JFrame {
             // random initial position in bottom right quadrant
             xpos = rand.nextInt(mundo.width / 2) + (mundo.width/2);
             ypos = rand.nextInt(mundo.height / 2) + (mundo.height/2);
+//
+//            xpos = mundo.width - 2;
+//            ypos = mundo.height - 2;
     
             if (mundo.grid[xpos][ypos] == 0)
                 break;
@@ -182,7 +185,7 @@ public class BayesWorld extends JFrame {
             case EAST: //
                 xpos ++;
                 break;
-            case 4: // stay
+            case STAY: // stay
                 break;
         }
         
@@ -199,9 +202,11 @@ public class BayesWorld extends JFrame {
         if (value <= moveProb)
             moveIt(action);
         else { // pick a different move randomly
-            int other = rand.nextInt(5);
-            while (other == action)
+            int other;
+            do {
                 other = rand.nextInt(5);
+            }
+            while (other == action);
             moveIt(other);
         }
     }

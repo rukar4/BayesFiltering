@@ -239,11 +239,11 @@ public class theRobot extends JFrame {
    public static final int STAY = 4;
 
    public static int[][] directions = {
-           {0, -1, SOUTH},     // up
-           {0, 1, NORTH},      // down
-           {1, 0, WEST},      // right
-           {-1, 0, EAST},     // left
-           {0, 0, STAY}       // stay
+         {0, -1, SOUTH},     // up
+         {0, 1, NORTH},      // down
+         {1, 0, WEST},      // right
+         {-1, 0, EAST},     // left
+         {0, 0, STAY}       // stay
    };
 
    Color bkgroundColor = new Color(230, 230, 230);
@@ -398,11 +398,12 @@ public class theRobot extends JFrame {
    // Iterate over utility values in the maze to find the optimal values
    void valueIteration() {
       double gamma = 0.9;
-      double epsilon = 1e-6;
+      double epsilon = 1e-10;
       double delta;
 
       Vs = new double[mundo.width][mundo.height];
 
+      printMundoArray(Vs);
       do {
          delta = 0.0;
          double[][] newVs = new double[mundo.width][mundo.height];
@@ -456,32 +457,16 @@ public class theRobot extends JFrame {
             yPrime = y;
          }
 
-         double prob;
-         if (intendedAction == action) {
-            prob = moveProb;
-         } else {
-            prob = (1 - moveProb) / 4.0;
-         }
+         double prob = (intendedAction == action) ? moveProb : (1 - moveProb) / 4.0;
 
          utility += prob * Vs[xPrime][yPrime];
       }
       return utility;
    }
 
-   void printMundoArray(double[][] array) {
-      System.out.println("----------------------------------------------------------------------------------------");
-      for (int y = 0; y < mundo.height; ++y) {
-         for (int x = 0; x < mundo.width; ++x) {
-            System.out.printf("[%.1f]", array[x][y]);
-         }
-         System.out.println();
-      }
-      System.out.println("----------------------------------------------------------------------------------------");
-   }
-
    double getRewardValue(int cellType) {
       double stairReward = -1.0;
-      double goalReward = 100.0;
+      double goalReward = 1000.0;
       double emptyReward = -0.01;
 
       return switch (cellType) {
@@ -587,7 +572,7 @@ public class theRobot extends JFrame {
          int moveY = y + directions[i][1];
 
          if (mundo.grid[moveX][moveY] == sonars.charAt(i) - '0' ||
-                 mundo.grid[moveX][moveY] != 1 && sonars.charAt(i) == '0') {
+               mundo.grid[moveX][moveY] != 1 && sonars.charAt(i) == '0') {
             ++numMatch;
          }
       }
@@ -660,8 +645,8 @@ public class theRobot extends JFrame {
 
             // Check for walls and ensure within bounds
             if (xPrime < 0 || xPrime >= mundo.width ||
-                    yPrime < 0 || yPrime >= mundo.height ||
-                    mundo.grid[xPrime][yPrime] == 1 || mundo.grid[x][y] == 1) {
+                  yPrime < 0 || yPrime >= mundo.height ||
+                  mundo.grid[xPrime][yPrime] == 1 || mundo.grid[x][y] == 1) {
                continue;
             }
 
@@ -688,8 +673,6 @@ public class theRobot extends JFrame {
             if (isManual)
                action = getHumanAction();  // get the action selected by the user (from the keyboard)
             else {
-//                action = automaticAction();
-
                // Favor exploration in the early actions to localize.
                action = autoExploreAction(numStay, epsilon);
                epsilon = Math.max(epsilon * epsilon, 0.01);
@@ -731,6 +714,31 @@ public class theRobot extends JFrame {
             Thread.currentThread().interrupt();
          }
       }
+   }
+
+   void printMundoArray(double[][] array) {
+      final String RESET = "\u001B[0m";
+      final String BLUE = "\u001B[34m";
+      final String RED = "\u001B[31m";
+      final String GREEN = "\u001B[32m";
+
+      System.out.println("----------------------------------------------------------------------------------------");
+      for (int y = 0; y < mundo.height; ++y) {
+         for (int x = 0; x < mundo.width; ++x) {
+            double val = array[x][y];
+            String color = RESET;
+
+            if (mundo.grid[x][y] == 1) color = BLUE;
+            else if (mundo.grid[x][y] == 2) color = RED;
+            else if (mundo.grid[x][y] == 3) color = GREEN;
+
+            System.out.print(color);
+            System.out.printf("[%6.2f]", val);
+            System.out.print(RESET);
+         }
+         System.out.println();
+      }
+      System.out.println("----------------------------------------------------------------------------------------");
    }
 
    // java theRobot [manual/automatic] [delay]
